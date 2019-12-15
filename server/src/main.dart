@@ -13,83 +13,49 @@ import 'package:pointycastle/key_generators/rsa_key_generator.dart' show RSAKeyG
 import 'package:basic_utils/basic_utils.dart' show X509Utils;
 import 'product.dart';
 
-const Map<String, List<Product>> products = {
-  'salato': [
-    Product.constant(
-      'PANINO ONTO.jpg',
-      'PANINO ONTO',
-      450
-    ),
-    Product.constant(
-      'Patatine-Fritte.jpg',
-      'PATATINE FRITTE',
-      200
-    ),
-    Product.constant(
-      'MENÙ ONTO.jpeg',
-      'MENÙ ONTO',
-      650
-    )
-  ],
-  'dolce': [
-    Product.constant(
-      'Zucchero Filato.jpeg',
-      'ZUCCHERO FILATO',
-      100
-    ),
-    Product.constant(
-      'POPCORN.jpg',
-      'POPCORN',
-      200
-    ),
-    Product.constant(
-      'cioccolata-calda-densa.jpg',
-      'CIOCCOLATA CALDA',
-      100
-    ),
-    Product.constant(
-      'pandoro.PNG',
-      'PANDORO',
-      100
-    )
-  ]
-}/*[
-  Product.constant(
-    'PANINO ONTO.jpg',
-    'PANINO ONTO',
-    450
-  ),
-  Product.constant(
-    'Patatine-Fritte.jpg',
-    'PATATINE FRITTE',
-    200
-  ),
-  Product.constant(
-    'MENÙ ONTO.jpeg',
-    'MENÙ ONTO',
-    650
-  ),
-  Product.constant(
-    'Zucchero Filato.jpeg',
-    'ZUCCHERO FILATO',
-    100
-  ),
-  Product.constant(
-    'POPCORN.jpg',
-    'POPCORN',
-    200
-  ),
-  Product.constant(
-    'cioccolata-calda-densa.jpg',
-    'CIOCCOLATA CALDA',
-    100
-  ),
-  Product.constant(
-    'pandoro.PNG',
-    'PANDORO',
-    100
-  )
-]*/;
+final String products = json.encode(
+  {
+    'Salato': [
+      Product.constant(
+        'PANINO ONTO.jpg',
+        'PANINO ONTO',
+        450
+      ),
+      Product.constant(
+        'Patatine-Fritte.jpg',
+        'PATATINE FRITTE',
+        200
+      ),
+      Product.constant(
+        'MENÙ ONTO.jpeg',
+        'MENÙ ONTO',
+        650
+      )
+    ],
+    'Dolce': [
+      Product.constant(
+        'Zucchero Filato.jpeg',
+        'ZUCCHERO FILATO',
+        100
+      ),
+      Product.constant(
+        'POPCORN.jpg',
+        'POPCORN',
+        200
+      ),
+      Product.constant(
+        'cioccolata-calda-densa.jpg',
+        'CIOCCOLATA CALDA',
+        100
+      ),
+      Product.constant(
+        'pandoro.PNG',
+        'PANDORO',
+        100
+      )
+    ]
+  }
+);
 
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
@@ -170,20 +136,27 @@ FutureOr<Response> reqHandler(shelf.Request req) async {
         0, out.length,
         out, 0
       );
-      out = utf8.decode(out.sublist(0, length));
 
-      //Deserialize the decoded body
-      out = Item.fromJson(out);
+      //Decode and deserialize the body
+      try {
+        out = json.decode(utf8.decode(out.sublist(0, length))) as List<dynamic>;
+      } on Exception {
+        return Response(400, body: 'Invalid body');
+      }
+      out = <Item>[
+        for (var item in out) 
+          Item.fromJson(item)
+      ];
       
       //Actually print the thing
-      print(out);
+      printerPrint(printers[idxPrinter], out);
       return Response.ok('Printing');
       break;
     case 'key':
       return Response.ok(pubKey);
       break;
     case 'products':
-      return Response.ok(json.encode(products));
+      return Response.ok(products);
       break;
     case 'printers':
       return Response.ok(
@@ -197,17 +170,29 @@ FutureOr<Response> reqHandler(shelf.Request req) async {
   }
 }
 
-void printerPrint(File printer, List<Item> items, int total) async {
+void printerPrint(File printer, int orderNum, List<Item> items) async {
   const int ESC = 0x1B;
-  printer ??= File('/dev/usb/lp2');
   var bytes = List<int>();
   bytes.addAll([ESC, 0x40]);
   bytes.addAll([ESC, 0x61, 2]);
-  bytes.addAll(latin1.encode('0001\nAssemblea di Natale\n'));
+  bytes.addAll(latin1.encode('$orderNum\nAssemblea di Natale\n'));
   bytes.addAll([ESC, 0x61, 0]);
-  bytes.addAll(latin1.encode('Menù Onto x1\nMenù Cioccolata x2\n'));
+  for (Item item in items){
+    bytes.addAll(
+      latin1.encode('${item.product.name} x${item.quantity}\n')
+    );
+    for (MapEntry<String, dynamic> e in item.chosvar.entries) {
+      bytes.addAll(latin1.encode('\t${e.key}:'));
+      if(e.value is String) bytes.addAll(latin1.encode('${e.value}\n'));
+      else {
+        for (String choice in e.value)
+          bytes.addAll(latin1.encode('\n\t\t$choice'));
+        bytes.addAll(latin1.encode('\n'));
+      }
+    }
+  }
   bytes.addAll([ESC, 0x61, 2]);
-  bytes.addAll(latin1.encode('Totale: 30E\n'));
+  bytes.addAll(latin1.encode('Totale: ${prettyPrintPrice(intTotal(items))} Euro\n'));
   bytes.addAll([0x1D, 0x56, 1]);
-  printer.writeAsBytesSync(bytes);
+  await printer.writeAsBytes(bytes);
 }

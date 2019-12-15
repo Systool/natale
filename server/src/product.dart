@@ -1,3 +1,5 @@
+import 'package:collection/collection.dart' show DeepCollectionEquality;
+
 int intTotal(Iterable<Item> items) => items.fold(0, (prev, e)=>prev+e.intTotal);
 String prettyPrintPrice(int price) => "${price~/100},${price%100 < 10 ? 0 : ''}${price%100}";
 
@@ -57,18 +59,32 @@ class Product {
 class Item {
   final Product product;
   int quantity = 0;
+  /*dynamic is either a string or a list of strings
+    if ListKind.Check then it's a list of strings
+    if ListKind.Radio then it's a single string
+  */
+  final Map<String, dynamic> chosvar;
   int get intTotal => product.intPrice*quantity;
   double get total => intTotal/100;
   String get stringTotal => prettyPrintPrice(intTotal);
 
-  Item(this.product, this.quantity): assert(product != null);
-  Item.fromJson(Map<String, dynamic> obj): this(Product.fromJson(obj['product']), obj['quantity']);
+  Item(this.product, this.chosvar, this.quantity): assert(product != null);
+  Item.fromJson(Map<String, dynamic> obj): this(Product.fromJson(obj['product']), obj['chosvar'], obj['quantity']);
 
   @override
   String toString()=>'${product.name}($quantity)';
 
   Map<String, dynamic> toJson() => {
     'product': product,
+    'chosvar': chosvar,
     'quantity': quantity
   };
+
+  static const equal = DeepCollectionEquality.unordered();
+
+  @override
+  bool operator ==(dynamic other){
+    if(other is Item)return product==other.product && equal.equals(chosvar, other.chosvar);
+    else return false;
+  }
 }
