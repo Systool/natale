@@ -427,14 +427,15 @@ class CartState extends State<Cart> {
                   Padding(
                     padding: EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                     child: Container(
-                      decoration: BoxDecoration(
+                      decoration: current.chosvar != null ? BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
                             color: Colors.grey,
                             width: 1.3
                           )
                         )
-                      ),
+                      )
+                      : null,
                       child: ListTile(
                         leading: Text(current.product.name),
                         trailing: Row(
@@ -457,7 +458,7 @@ class CartState extends State<Cart> {
                       )
                     )
                   ),
-                  Padding(
+                  current.chosvar != null ? Padding(
                     padding: EdgeInsets.symmetric(vertical: 7, horizontal: 10),
                     child: DefaultTextStyle(
                       style: TextStyle(
@@ -477,6 +478,7 @@ class CartState extends State<Cart> {
                       )
                     )
                   )
+                  : Container()
                 ]
               )
             );
