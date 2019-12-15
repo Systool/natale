@@ -17,37 +17,7 @@ void main() => runApp(MyApp());
 
 int idxPrinter;
 RSA pubKey;
-final Map<String, List<Product>> prodotti = {
-  'Salato': [
-    Product(
-      null,
-      'Gay',
-      100,
-      {
-        'Carne': VariationList(
-          ListKind.Check,
-          ['Ketchup', 'Mayonnaise']
-        ),
-        'Prova': VariationList(
-          ListKind.Radio,
-          ['Ketchup', 'Mayonnaise']
-        )
-      } 
-    ),
-
-    Product(
-      null,
-      'Lesbeca',
-      100,
-      {
-        'Carne': VariationList(
-          ListKind.Radio,
-          ['Ketchup', 'Mayonnaise']
-        )
-      } 
-    )
-  ]
-};
+final Map<String, List<Product>> prodotti = {};
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -71,7 +41,7 @@ class MyApp extends StatelessWidget {
         )
       ),
       debugShowCheckedModeBanner: false,
-      home: Mainpage(),
+      home: Config(),
     );
   }
 }
@@ -79,8 +49,15 @@ class MyApp extends StatelessWidget {
 class Config extends StatelessWidget {
   final Future<void> storingProducts = (
     ()async{
-      var resp = await httpClient.get(Uri.http(window.location.host, "products"));
+      dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
       resp = json.decode(resp.body);
+      if(resp is Map<String, List<dynamic>>)
+        for (MapEntry<String, List<dynamic>> e in resp.entries)
+          prodotti[e.key] = [
+            for (var prod in e.value)
+              Product.fromJson(prod)
+          ];
+      else throw StateError('Products were not sent correctly');
     }
   )();
 
