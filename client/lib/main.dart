@@ -406,20 +406,14 @@ class CartState extends State<Cart> {
     decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey))),
     child: Scaffold(
       body: ListView.builder(
-        itemCount: order.length+2,
+        itemCount: order.length+1,
         itemBuilder: (cntxt, idx){
-          if(idx == 0)return ListTile(
-            leading: Padding(
-              padding: EdgeInsets.only(left: 10),
-              child: Text('Numero Ordine:', textScaleFactor: 1.7)
-            )
-          );
-          else if(idx >= order.length+1) return ListTile(
+          if(idx >= order.length+1) return ListTile(
             leading: Text('Totale'),
             trailing: Text('${prettyPrintPrice(intTotal(order))}€'),
           );
           else {
-            Item current = order.elementAt(idx-1);
+            Item current = order.elementAt(idx);
             return Card(
               child: Column(
                 children: <Widget>[
