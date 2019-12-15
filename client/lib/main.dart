@@ -198,64 +198,67 @@ class Store extends StatelessWidget {
         maxCrossAxisExtent: 200
       ),
       delegate: SliverChildBuilderDelegate(
-        (cntxt, idx)=>SizedBox.expand(
-          child: Card(
-            color: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10)
-            ),
-            elevation: 2,
-            child: FlatButton(
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if(prodotti[kind][idx].imagePath != null)
-                      ...[
-                        Padding(
-                          padding: EdgeInsets.only(bottom: 5),
-                          child: Image.network(
-                            'http://${window.location.host}/img/${prodotti[kind][idx].imagePath}',
-                            height: 120,
-                          )
-                        ),
-                        Spacer()
-                      ],
-                    Text(prodotti[kind][idx].name, style: TextStyle(color: Colors.black))
-                  ]
-                )
+        (cntxt, idx){
+          Product current = prodotti[kind][idx];
+          return SizedBox.expand(
+            child: Card(
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)
               ),
-              onPressed: prodotti[kind][idx].variations != null ?
-                (){
-                _currentEntry = OverlayEntry(
-                  builder: (cntxt)=>MealDialog(
-                    prodotti[kind][idx].variations,
-                    onCancellation: _removeOverlay,
-                    onApproval: (choices){
-                      _sink.add(
-                        Item(
-                          prodotti[kind][idx],
-                          choices,
-                          1
-                        )
-                      );
-                      _removeOverlay();
-                    },
+              elevation: 2,
+              child: FlatButton(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      if(current.imagePath != null)
+                        ...[
+                          Padding(
+                            padding: EdgeInsets.only(bottom: 5),
+                            child: Image.network(
+                              'http://${window.location.host}/img/${current.imagePath}',
+                              height: 120,
+                            )
+                          ),
+                          Spacer()
+                        ],
+                      Text('${current.name} - ${current.stringPrice}€', style: TextStyle(color: Colors.black))
+                    ]
                   )
-                );
-                Overlay.of(cntxt).insert(_currentEntry);
-              } 
-              : ()=>_sink.add(
-                  Item(
-                    prodotti[kind][idx],
-                    null,
-                    1
+                ),
+                onPressed: current.variations != null ?
+                  (){
+                  _currentEntry = OverlayEntry(
+                    builder: (cntxt)=>MealDialog(
+                      current.variations,
+                      onCancellation: _removeOverlay,
+                      onApproval: (choices){
+                        _sink.add(
+                          Item(
+                            current,
+                            choices,
+                            1
+                          )
+                        );
+                        _removeOverlay();
+                      },
+                    )
+                  );
+                  Overlay.of(cntxt).insert(_currentEntry);
+                } 
+                : ()=>_sink.add(
+                    Item(
+                      current,
+                      null,
+                      1
+                    )
                   )
-                )
+              )
             )
-          )
-        ),
+          );
+        },
         childCount: prodotti[kind].length
       )
     )
@@ -408,7 +411,7 @@ class CartState extends State<Cart> {
       body: ListView.builder(
         itemCount: order.length+1,
         itemBuilder: (cntxt, idx){
-          if(idx >= order.length+1) return ListTile(
+          if(idx >= order.length) return ListTile(
             leading: Text('Totale'),
             trailing: Text('${prettyPrintPrice(intTotal(order))}€'),
           );
@@ -430,7 +433,7 @@ class CartState extends State<Cart> {
                       )
                       : null,
                       child: ListTile(
-                        leading: Text(current.product.name),
+                        leading: Text('${current.product.name}'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: <Widget>[
