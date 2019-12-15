@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:html' show window;
-import 'dart:js';
 import 'dart:convert' show json, utf8;
 import 'dart:ui' hide window;
 import 'package:flutter/cupertino.dart';
@@ -445,7 +444,7 @@ class CartState extends State<Cart> {
                               padding: EdgeInsets.only(right: 15),
                               child: NumPicker(
                                 currentNumber: current.quantity,
-                                onChange: (val)=>current.quantity=val,
+                                onChange: (val)=>setState(()=>current.quantity=val),
                               ),
                             ),
                             RaisedButton(
