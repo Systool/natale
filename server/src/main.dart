@@ -59,12 +59,12 @@ final String products = json.encode(
 
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
-
-String pubKey;
-RSAPrivateKey privKey;
 final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
+int CurrentOrder = 0;
 
 void main() async {
+  String pubKey;
+  RSAPrivateKey privKey;
   {
     File pubKeyFile = File('pub.pem');
     File privKeyFile = File('priv.pem');
@@ -102,73 +102,80 @@ void main() async {
       .cast<File>()
   );
 
-  var handler = shelf.Pipeline().addMiddleware(shelf.logRequests()).addHandler(reqHandler);
+  var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
+    .addHandler(
+      reqHandler(pubKey, privKey)
+    );
 
   await serve(handler, '0.0.0.0', 8080).then(
     (server) => print('Listening on ${server.address.address}:${server.port}')
   );
 }
 
-FutureOr<Response> reqHandler(shelf.Request req) async {
-  switch (req.url.path) {
-    case 'print':
-      int idxPrinter;
-      //Bad request
-      if(
-        !req.url.hasQuery || 
-        req.url.queryParameters['p'] == null ||
-        (idxPrinter = int.tryParse(req.url.queryParameters['p'])) == null ||
-        idxPrinter < 0 ||
-        idxPrinter >= printers.length
-      ) return Response(400, body: 'Missing printer index');
+shelf.Handler reqHandler(
+  String pubKey,
+  RSAPrivateKey privKey
+) =>
+  (shelf.Request req) async {
+    switch (req.url.path) {
+      case 'print':
+        int idxPrinter;
+        //Bad request
+        if(
+          !req.url.hasQuery || 
+          req.url.queryParameters['p'] == null ||
+          (idxPrinter = int.tryParse(req.url.queryParameters['p'])) == null ||
+          idxPrinter < 0 ||
+          idxPrinter >= printers.length
+        ) return Response(400, body: 'Missing printer index');
 
-      //Decode the body
-      Uint8List bytes;
-      await req.read().forEach(
-        (stream){
-          if(bytes == null)bytes = Uint8List.fromList(stream);
-          else bytes.addAll(stream);
+        //Decode the body
+        Uint8List bytes;
+        await req.read().forEach(
+          (stream){
+            if(bytes == null)bytes = Uint8List.fromList(stream);
+            else bytes.addAll(stream);
+          }
+        );
+        dynamic out = Uint8List(bytes.length);
+        int length = rsa.processBlock(
+          bytes,
+          0, out.length,
+          out, 0
+        );
+
+        //Decode and deserialize the body
+        try {
+          out = json.decode(utf8.decode(out.sublist(0, length))) as List<dynamic>;
+        } on Exception {
+          return Response(400, body: 'Invalid body');
         }
-      );
-      dynamic out = Uint8List(bytes.length);
-      int length = rsa.processBlock(
-        bytes,
-        0, out.length,
-        out, 0
-      );
-
-      //Decode and deserialize the body
-      try {
-        out = json.decode(utf8.decode(out.sublist(0, length))) as List<dynamic>;
-      } on Exception {
-        return Response(400, body: 'Invalid body');
-      }
-      out = <Item>[
-        for (var item in out) 
-          Item.fromJson(item)
-      ];
-      
-      //Actually print the thing
-      printerPrint(printers[idxPrinter], out);
-      return Response.ok('Printing');
-      break;
-    case 'key':
-      return Response.ok(pubKey);
-      break;
-    case 'products':
-      return Response.ok(products);
-      break;
-    case 'printers':
-      return Response.ok(
-        printers.map(
-          (e)=>e.path,
-        ).join(',')
-      );
-      break;
-    default:
-      return fileHandler(req);
-  }
-}
+        out = <Item>[
+          for (var item in out) 
+            Item.fromJson(item)
+        ];
+        
+        //Actually print the thing
+        await printerPrint(printers[idxPrinter], out);
+        return Response.ok('Printed');
+        break;
+      case 'key':
+        return Response.ok(pubKey);
+        break;
+      case 'products':
+        return Response.ok(products);
+        break;
+      case 'printers':
+        return Response.ok(
+          printers.map(
+            (e)=>e.path,
+          ).join(',')
+        );
+        break;
+      default:
+        return fileHandler(req);
+    }
+  };
 
 void printerPrint(File printer, int orderNum, List<Item> items) async {
   const int ESC = 0x1B;
