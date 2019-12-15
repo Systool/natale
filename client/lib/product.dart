@@ -42,7 +42,7 @@ class Product {
       obj['image'],
       obj['name'],
       obj['price'],
-      obj['variations'].map<String, VariationList>((String k, v)=>MapEntry(k, VariationList.fromJson(v)))
+      obj['variations']?.map<String, VariationList>((String k, v)=>MapEntry(k, VariationList.fromJson(v)))
     );
 
   const Product.constant(this.imagePath, this.name, this.intPrice, [this.variations])

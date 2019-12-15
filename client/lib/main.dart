@@ -51,8 +51,8 @@ class Config extends StatelessWidget {
     ()async{
       dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
       resp = json.decode(resp.body);
-      if(resp is Map<String, List<dynamic>>)
-        for (MapEntry<String, List<dynamic>> e in resp.entries)
+      if(resp is Map<String, dynamic>)
+        for (MapEntry<String, dynamic> e in resp.entries)
           prodotti[e.key] = [
             for (var prod in e.value)
               Product.fromJson(prod)
@@ -74,7 +74,7 @@ class Config extends StatelessWidget {
     body: Center(
       child: StatefulBuilder(
         builder: (cntxt, setState)=>idxPrinter == null ?
-          FutureBuilder(
+          FutureBuilder<List<String>>(
             future: httpClient.get(Uri.http(window.location.host, "printers")).then(
               (resp)=>resp.body.split(",")..removeWhere((s)=>s.isEmpty)
             ),
