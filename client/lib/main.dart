@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:html' show window;
+import 'dart:js';
 import 'dart:convert' show json, utf8;
 import 'dart:ui' hide window;
 import 'package:flutter/cupertino.dart';
@@ -212,12 +213,22 @@ class Store extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
                     if(prodotti[kind][idx].imagePath != null)
-                      Image.network('http://${window.location.host}/img/${prodotti[kind][idx].imagePath}'),
-                    Text(prodotti[kind][idx].name)
+                      ...[
+                        Padding(
+                          padding: EdgeInsets.only(bottom: 5),
+                          child: Image.network(
+                            'http://${window.location.host}/img/${prodotti[kind][idx].imagePath}',
+                            height: 120,
+                          )
+                        ),
+                        Spacer()
+                      ],
+                    Text(prodotti[kind][idx].name, style: TextStyle(color: Colors.black))
                   ]
                 )
               ),
-              onPressed: (){
+              onPressed: prodotti[kind][idx].variations != null ?
+                (){
                 _currentEntry = OverlayEntry(
                   builder: (cntxt)=>MealDialog(
                     prodotti[kind][idx].variations,
@@ -235,7 +246,14 @@ class Store extends StatelessWidget {
                   )
                 );
                 Overlay.of(cntxt).insert(_currentEntry);
-              }
+              } 
+              : ()=>_sink.add(
+                  Item(
+                    prodotti[kind][idx],
+                    null,
+                    1
+                  )
+                )
             )
           )
         ),
