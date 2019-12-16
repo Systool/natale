@@ -6,8 +6,6 @@ import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
 import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
-import 'package:pointycastle/impl.dart';
-import 'package:pointycastle/export.dart';
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
 
