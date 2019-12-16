@@ -16,21 +16,94 @@ import 'product.dart';
 
 final String products = json.encode(
   {
-    'Salato': [
+    'Salato':[
+      Product.constant(
+        'MENÙ ONTO.jpeg',
+        'MENU ONTO',
+        650,
+        {
+          'Carne': VariationList(
+            ListKind.Radio,
+            [
+              'Porchetta',
+              'Salsiccia',
+              'No Carne'
+            ]
+          ),
+          'Farcitura':  VariationList(
+            ListKind.Check,
+            [
+              'Cipolla',
+              'Peperoni',
+              'Formaggio',
+              'Maionese',
+              'Ketchup'
+            ]
+          ),
+          'Salsa': VariationList(
+            ListKind.Check,
+            [
+              'Ketchup',
+              'Maionese'
+            ]
+          )
+        }
+      ),
       Product.constant(
         'PANINO ONTO.jpg',
         'PANINO ONTO',
-        450
+        450,
+        {
+          'Carne': VariationList(
+            ListKind.Radio,
+            [
+              'Porchetta',
+              'Salsiccia',
+              'No Carne'
+            ]
+          ),
+          'Farcitura':  VariationList(
+            ListKind.Check,
+            [
+              'Cipolla',
+              'Peperoni',
+              'Formaggio',
+              'Maionese',
+              'Ketchup'
+            ]
+          )
+        }
       ),
       Product.constant(
         'Patatine-Fritte.jpg',
         'PATATINE FRITTE',
-        200
+        200,
+        {
+          'Salsa': VariationList(
+            ListKind.Check,
+            [
+              'Ketchup',
+              'Maionese'
+            ]
+          )
+        }
       ),
       Product.constant(
-        'MENÙ ONTO.jpeg',
-        'MENÙ ONTO',
-        650
+          'bibite.jpeg',
+          'Bibita',
+          0,
+          {
+            '': VariationList(
+            ListKind.Radio,
+            [
+              'Coca Cola',
+              'Fanta',
+              'Sprite',
+              'The Limone',
+              'The Pesca'
+            ]
+          )
+          }
       )
     ],
     'Dolce': [
@@ -40,9 +113,9 @@ final String products = json.encode(
         100
       ),
       Product.constant(
-        'POPCORN.jpg',
-        'POPCORN',
-        200
+        'pandoro.PNG',
+        'PANDORO',
+        100
       ),
       Product.constant(
         'cioccolata-calda-densa.jpg',
@@ -50,12 +123,31 @@ final String products = json.encode(
         100
       ),
       Product.constant(
-        'pandoro.PNG',
-        'PANDORO',
-        100
+        'menu dolce.PNG',
+        'MENU DOLCE',
+        150
+      )
+    ],
+    'Bibite': [
+      Product.constant(
+        'bibite.jpeg',
+        'BIBITE',
+        80,
+        {
+          'Bibite': VariationList(
+            ListKind.Radio,
+            [
+              'Coca Cola',
+              'Fanta',
+              'Sprite',
+              'The Limone',
+              'The Pesca'
+            ]
+          )
+        }
       )
     ]
-  }
+  } as Map
 );
 
 final List<File> printers = [];
@@ -97,12 +189,11 @@ void main() async {
   rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));
 
   //Putting printers in list
-  /*printers.addAll(
+  printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
       .where((e)=>e.path.contains('/lp') && e is File)
       .cast<File>()
-  );*/
-  printers.add(File('/dev/null'));
+  );
 
   //Initializing csv and order in-memory database
   int currentOrder = 0;
@@ -174,23 +265,18 @@ shelf.Handler reqHandler(
         ) return Response(400, body: 'Missing printer index');
 
         //Decode the body
-        Uint8List bytes;
+        Uint8List body;
         await req.read().forEach(
           (stream){
-            if(bytes == null)bytes = Uint8List.fromList(stream);
-            else bytes.addAll(stream);
+            if(body == null)body = Uint8List.fromList(stream);
+            else body.addAll(stream);
           }
         );
-        dynamic out = Uint8List(bytes.length);
-        int length = rsa.processBlock(
-          bytes,
-          0, out.length,
-          out, 0
-        );
+        dynamic out;
 
         //Decode and deserialize the body
         try {
-          out = json.decode(utf8.decode(out.sublist(0, length))) as List<dynamic>;
+          out = json.decode(utf8.decode(body)) as List<dynamic>;
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
@@ -234,15 +320,16 @@ void printerPrint(File printer, int orderNum, List<Item> items) async {
     bytes.addAll(
       latin1.encode('${item.product.name} x${item.quantity}\n')
     );
-    for (MapEntry<String, dynamic> e in item.chosvar.entries) {
-      bytes.addAll(latin1.encode('\t${e.key}:'));
-      if(e.value is String) bytes.addAll(latin1.encode('${e.value}\n'));
-      else {
-        for (String choice in e.value)
-          bytes.addAll(latin1.encode('\n\t\t$choice'));
-        bytes.addAll(latin1.encode('\n'));
+    if(item.chosvar != null)
+      for (MapEntry<String, dynamic> e in item.chosvar.entries) {
+        bytes.addAll(latin1.encode('\t${e.key}:'));
+        if(e.value is String) bytes.addAll(latin1.encode('${e.value}\n'));
+        else {
+          for (String choice in e.value)
+            bytes.addAll(latin1.encode('\n\t\t$choice'));
+          bytes.addAll(latin1.encode('\n'));
+        }
       }
-    }
   }
   bytes.addAll([ESC, 0x61, 2]);
   bytes.addAll(latin1.encode('Totale: ${prettyPrintPrice(intTotal(items))} Euro\n'));

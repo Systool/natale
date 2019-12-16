@@ -50,7 +50,12 @@ class Config extends StatelessWidget {
   final Future<void> storingProducts = (
     ()async{
       dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
-      resp = json.decode(resp.body);
+      try{
+        resp = json.decode(resp.body);
+      } on Exception {
+        print(resp.toString());
+      }
+
       if(resp is Map<String, dynamic>)
         for (MapEntry<String, dynamic> e in resp.entries)
           prodotti[e.key] = [
@@ -192,6 +197,7 @@ class Store extends StatelessWidget {
     SliverAppBar(
       title: Text(kind),
       centerTitle: true,
+      automaticallyImplyLeading: false,
     ),
     SliverGrid(
       gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
@@ -336,29 +342,27 @@ class MealDialog extends StatelessWidget {
                 left: 20,
                 right: 20
               ),
-              child: ListView(
-                shrinkWrap: true,
-                children: <Widget>[
-                  for(String key in _variations.keys)
-                    ...[
-                      Text(key, style: TextStyle(fontWeight: FontWeight.w600)),
-                      _buildSection(key)
-                    ] 
-                ]
-              )
-            ),
-            ButtonBar(
-              children: <Widget>[
-                FlatButton(
-                  child: Text('Annulla'),
-                  onPressed: onCancellation,
-                ),
-                RaisedButton(
-                  child: Text('Aggiungi al Carrello'),
-                  color: Colors.red,
-                  onPressed: ()=>onApproval(_choices),
+              child: SizedBox.expand(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: <Widget>[
+                    for(String key in _variations.keys)
+                      ...[
+                        Text(key, style: TextStyle(fontWeight: FontWeight.w600)),
+                        _buildSection(key)
+                      ],
+                    FlatButton(
+                      child: Text('Annulla'),
+                      onPressed: onCancellation,
+                    ),
+                    RaisedButton(
+                      child: Text('Aggiungi al Carrello'),
+                      color: Colors.red,
+                      onPressed: ()=>onApproval(_choices),
+                    )
+                  ]
                 )
-              ],
+              )
             )
           ]
         )
@@ -485,17 +489,22 @@ class CartState extends State<Cart> {
         FloatingActionButton(
           child: Icon(Icons.shopping_cart),
           onPressed: (){
-            httpClient.post(
-              Uri.http(
-                window.location.host,
-                "print",
-                { "p": idxPrinter.toString() }
-              ),
-              body: pubKey.encrypt(
-                //String=>List<int>
-                utf8.encode(json.encode(order))
-              ).bytes //Send raw bytes
-            );
+            try {
+              httpClient.post(
+                Uri.http(
+                  window.location.host,
+                  'print',
+                  { "p": idxPrinter.toString() }
+                ),
+                body: /*pubKey.encrypt(
+                  //String=>List<int>
+                  utf8.encode(json.encode(order))
+                ).bytes*/json.encode(order),
+                 //Send raw bytes
+              );
+            } on Exception catch(e) {
+              print(e.toString());
+            }
             Navigator.popUntil(cntxt, (route)=>route.isFirst);
           }
         ) : null,
