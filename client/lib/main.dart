@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/browser_client.dart' show BrowserClient;
-import 'package:encrypt/encrypt.dart' show RSA, RSAKeyParser;
 import 'product.dart';
 import 'delegates.dart';
 
@@ -16,7 +15,6 @@ final httpClient = BrowserClient();
 void main() => runApp(MyApp());
 
 int idxPrinter;
-RSA pubKey;
 final Map<String, List<Product>> prodotti = {};
 
 class MyApp extends StatelessWidget {
