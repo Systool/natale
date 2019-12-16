@@ -202,12 +202,7 @@ shelf.Handler reqHandler(
         //Actually print the thing
         int currN = getCurrentOrderNumber();
         data[currN] = out;
-        //await printerPrint(printers[idxPrinter], currN, out);
-        if(data.length == 20){
-          Map<int, List<Item>> old = Map.from(data);
-          data.clear();
-          storeToFile(data);
-        }
+        await printerPrint(printers[idxPrinter], currN, out);
         return Response.ok('Printed');
         break;
       case 'key':
