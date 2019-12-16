@@ -112,7 +112,7 @@ void main() async {
     if(await csvdata.exists()){
       List<List> table = csv.decoder.convert(await csvdata.readAsString(), shouldParseNumbers: true);
       try {
-        currentOrder = int.tryParse(table.last[0]) ?? 0;
+        currentOrder = table.last[0] is int ? table.last[0] : 0;
       } on StateError {
         currentOrder = 0;
       }
@@ -268,5 +268,6 @@ void storeToFile(Map<int, List<Item>> map) async =>
           ]
         ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
       ]
-    )
+    ),
+    mode: FileMode.writeOnlyAppend
   );
