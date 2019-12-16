@@ -289,9 +289,6 @@ shelf.Handler reqHandler(
         await printerPrint(printers[idxPrinter], currN, out);
         return Response.ok('Printed');
         break;
-      case 'key':
-        return Response.ok(pubKey);
-        break;
       case 'products':
         return Response.ok(products);
         break;
