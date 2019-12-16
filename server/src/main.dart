@@ -268,6 +268,6 @@ void storeToFile(Map<int, List<Item>> map) async =>
           ]
         ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
       ]
-    ),
+    )+'\n',
     mode: FileMode.writeOnlyAppend
   );
