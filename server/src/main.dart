@@ -11,6 +11,7 @@ import 'package:pointycastle/impl.dart';
 import 'package:pointycastle/export.dart';
 import 'package:pointycastle/key_generators/rsa_key_generator.dart' show RSAKeyGenerator;
 import 'package:basic_utils/basic_utils.dart' show X509Utils;
+import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
 
 final String products = json.encode(
@@ -60,7 +61,7 @@ final String products = json.encode(
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
 final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
-int CurrentOrder = 0;
+final CsvCodec csv = CsvCodec();
 
 void main() async {
   String pubKey;
@@ -96,25 +97,68 @@ void main() async {
   rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));
 
   //Putting printers in list
-  printers.addAll(
+  /*printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
       .where((e)=>e.path.contains('/lp') && e is File)
       .cast<File>()
-  );
+  );*/
+  printers.add(File('/dev/null'));
+
+  //Initializing csv and order in-memory database
+  int currentOrder = 0;
+  Map<int, List<Item>> data = {};
+  {
+    File csvdata = File('data.csv');
+    if(await csvdata.exists()){
+      List<List> table = csv.decoder.convert(await csvdata.readAsString(), shouldParseNumbers: true);
+      try {
+        currentOrder = int.tryParse(table.last[0]) ?? 0;
+      } on StateError {
+        currentOrder = 0;
+      }
+    } else {
+      await csvdata.create();
+      await csvdata.writeAsString(
+        csv.encoder.convert(
+          [['Order Number', 'Product', 'Variant(s)', 'Quantity']]
+        )
+      );
+    }
+  }
+  print(currentOrder);
 
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
-      reqHandler(pubKey, privKey)
+      reqHandler(
+        pubKey,
+        privKey,
+        data,
+        getCurrentOrderNumber: ()=>currentOrder++
+      )
     );
 
-  await serve(handler, '0.0.0.0', 8080).then(
-    (server) => print('Listening on ${server.address.address}:${server.port}')
+  HttpServer server = await serve(handler, '0.0.0.0', 8080).then(
+    (server){
+      print('Listening on ${server.address.address}:${server.port}');
+      return server;
+    }
+  );
+
+  StreamSubscription sub;
+  sub = ProcessSignal.sigint.watch().listen(
+    (sig) async {
+      await server.close();
+      storeToFile(data);
+      await sub.cancel();
+    }
   );
 }
 
 shelf.Handler reqHandler(
   String pubKey,
-  RSAPrivateKey privKey
+  RSAPrivateKey privKey,
+  Map<int, List<Item>> data,
+  {int Function() getCurrentOrderNumber}
 ) =>
   (shelf.Request req) async {
     switch (req.url.path) {
@@ -156,7 +200,14 @@ shelf.Handler reqHandler(
         ];
         
         //Actually print the thing
-        await printerPrint(printers[idxPrinter], out);
+        int currN = getCurrentOrderNumber();
+        data[currN] = out;
+        //await printerPrint(printers[idxPrinter], currN, out);
+        if(data.length == 20){
+          Map<int, List<Item>> old = Map.from(data);
+          data.clear();
+          storeToFile(data);
+        }
         return Response.ok('Printed');
         break;
       case 'key':
@@ -203,3 +254,19 @@ void printerPrint(File printer, int orderNum, List<Item> items) async {
   bytes.addAll([0x1D, 0x56, 1]);
   await printer.writeAsBytes(bytes);
 }
+
+void storeToFile(Map<int, List<Item>> map) async =>
+  await File('data.csv').writeAsString(
+    csv.encoder.convert(
+      [
+        for (MapEntry<int, List<Item>> e in map.entries)[
+          e.key,
+          for (Item i in e.value) ...[
+            i.product.name,
+            i.chosvar.toString(),
+            i.quantity
+          ]
+        ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
+      ]
+    )
+  );
