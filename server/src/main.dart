@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
 import 'package:shelf/shelf.dart' as shelf;
@@ -9,8 +8,6 @@ import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
 import 'package:pointycastle/impl.dart';
 import 'package:pointycastle/export.dart';
-import 'package:pointycastle/key_generators/rsa_key_generator.dart' show RSAKeyGenerator;
-import 'package:basic_utils/basic_utils.dart' show X509Utils;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
 
@@ -158,7 +155,7 @@ final String products = json.encode(
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
 //final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
-final CsvCodec csv = CsvCodec();
+final CsvCodec csv = CsvCodec(eol: '\n');
 
 void main() async {
   /*String pubKey;
@@ -207,11 +204,7 @@ void main() async {
     File csvdata = File('data.csv');
     if(await csvdata.exists()){
       List<List> table = csv.decoder.convert(await csvdata.readAsString(), shouldParseNumbers: true);
-      try {
-        currentOrder = table.last[0] is int ? table.last[0] : 0;
-      } on StateError {
-        currentOrder = 0;
-      }
+      currentOrder = table.last[0] is int ? table.last[0]+1 : 0;
     } else {
       await csvdata.create();
       await csvdata.writeAsString(
@@ -252,8 +245,6 @@ void main() async {
 
 shelf.Handler reqHandler(
   {
-    String pubKey,
-    RSAPrivateKey privKey,
     Map<int, List<Item>> data,
     int Function() getCurrentOrderNumber
   }
@@ -344,19 +335,21 @@ void printerPrint(File printer, int orderNum, List<Item> items) async {
   await printer.writeAsBytes(bytes);
 }
 
-void storeToFile(Map<int, List<Item>> map) async =>
-  await File('data.csv').writeAsString(
-    csv.encoder.convert(
-      [
-        for (MapEntry<int, List<Item>> e in map.entries)[
-          e.key,
-          for (Item i in e.value) ...[
-            i.product.name,
-            i.chosvar.toString(),
-            i.quantity
-          ]
-        ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
-      ]
-    )+'\n',
-    mode: FileMode.writeOnlyAppend
-  );
+void storeToFile(Map<int, List<Item>> map) async {
+  if(map.isNotEmpty)
+    await File('data.csv').writeAsString(
+      csv.encoder.convert(
+        [
+          for (MapEntry<int, List<Item>> e in map.entries)[
+            e.key,
+            for (Item i in e.value) ...[
+              i.product.name,
+              i.chosvar.toString(),
+              i.quantity
+            ]
+          ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
+        ]
+      )+'\n',
+      mode: FileMode.writeOnlyAppend
+    );
+}
