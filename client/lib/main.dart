@@ -321,7 +321,7 @@ class MealDialog extends StatelessWidget {
       delegate: MealDelegate(),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: Column(
+        child: Column(//TODO: Swap this with a MultiChildCustomLayout
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
             Padding(
@@ -331,27 +331,29 @@ class MealDialog extends StatelessWidget {
                 left: 20,
                 right: 20
               ),
-              child: SizedBox.expand(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: <Widget>[
-                    for(String key in _variations.keys)
-                      ...[
-                        Text(key, style: TextStyle(fontWeight: FontWeight.w600)),
-                        _buildSection(key)
-                      ],
-                    FlatButton(
-                      child: Text('Annulla'),
-                      onPressed: onCancellation,
-                    ),
-                    RaisedButton(
-                      child: Text('Aggiungi al Carrello'),
-                      color: Colors.red,
-                      onPressed: ()=>onApproval(_choices),
-                    )
-                  ]
-                )
+              child: ListView(
+                shrinkWrap: true,
+                children: <Widget>[
+                  for(String key in _variations.keys)
+                    ...[
+                      Text(key, style: TextStyle(fontWeight: FontWeight.w600)),
+                      _buildSection(key)
+                    ],
+                ]
               )
+            ),
+            ButtonBar(
+              children: <Widget>[
+                FlatButton(
+                  child: Text('Annulla'),
+                  onPressed: onCancellation,
+                ),
+                RaisedButton(
+                  child: Text('Aggiungi al Carrello'),
+                  color: Colors.red,
+                  onPressed: ()=>onApproval(_choices),
+                )
+              ],
             )
           ]
         )
