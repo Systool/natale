@@ -1,16 +1,11 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
 import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
-import 'package:pointycastle/impl.dart';
-import 'package:pointycastle/export.dart';
-import 'package:pointycastle/key_generators/rsa_key_generator.dart' show RSAKeyGenerator;
-import 'package:basic_utils/basic_utils.dart' show X509Utils;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
 
@@ -90,12 +85,12 @@ final String products = json.encode(
       ),
       Product.constant(
           'POPCORN.jpg',
-          'Popcorn',
+          'POPCORN',
           200
       ),
       Product.constant(
           'bibite.jpeg',
-          'Bibita',
+          'BIBITA',
           0,
           {
             '': VariationList(
@@ -157,42 +152,9 @@ final String products = json.encode(
 
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
-//final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
 final CsvCodec csv = CsvCodec();
 
 void main() async {
-  /*String pubKey;
-  RSAPrivateKey privKey;
-  {
-    File pubKeyFile = File('pub.pem');
-    File privKeyFile = File('priv.pem');
-    //Loading KeyPair
-    if(await pubKeyFile.exists() || await privKeyFile.exists()){
-      print('Loading key pair');
-      pubKey = await pubKeyFile.readAsString();
-      privKey = X509Utils.privateKeyFromPem(await privKeyFile.readAsString());
-    } else {
-      //Creating KeyPair
-      print('Creating key pair');
-      var rng = Random.secure();
-      var seeds = Uint8List(32);
-      for(var i = 0; i < seeds.length; ++i) seeds[i]=rng.nextInt(256);
-      var keyPair = (
-        RSAKeyGenerator()..init(
-          ParametersWithRandom(
-            RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 5),
-            FortunaRandom()..seed(KeyParameter(seeds))
-          )
-        )
-      ).generateKeyPair();
-      privKey = keyPair.privateKey;
-      pubKey = X509Utils.encodeRSAPublicKeyToPem(keyPair.publicKey);
-      await privKeyFile.writeAsString(X509Utils.encodeRSAPrivateKeyToPem(keyPair.privateKey), flush: true);
-      await pubKeyFile.writeAsString(pubKey, flush: true);
-    }
-  }
-  rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));*/
-
   //Putting printers in list
   printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
@@ -252,8 +214,6 @@ void main() async {
 
 shelf.Handler reqHandler(
   {
-    String pubKey,
-    RSAPrivateKey privKey,
     Map<int, List<Item>> data,
     int Function() getCurrentOrderNumber
   }
@@ -297,9 +257,6 @@ shelf.Handler reqHandler(
         data[currN] = out;
         await printerPrint(printers[idxPrinter], currN, out);
         return Response.ok('Printed');
-        break;
-      case 'key':
-        return Response.ok(pubKey);
         break;
       case 'products':
         return Response.ok(products);

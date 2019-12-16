@@ -11,8 +11,6 @@ dependencies:
   args: ^1.5.0
   shelf: ^0.7.5
   shelf_static: ^0.2.8
-  pointycastle: ^1.0.2
-  basic_utils: ^2.3.8
   csv: ^4.0.3
 
 
