@@ -89,6 +89,11 @@ final String products = json.encode(
         }
       ),
       Product.constant(
+          'POPCORN.jpg',
+          'Popcorn',
+          200
+      ),
+      Product.constant(
           'bibite.jpeg',
           'Bibita',
           0,
@@ -152,11 +157,11 @@ final String products = json.encode(
 
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
-final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
+//final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
 final CsvCodec csv = CsvCodec();
 
 void main() async {
-  String pubKey;
+  /*String pubKey;
   RSAPrivateKey privKey;
   {
     File pubKeyFile = File('pub.pem');
@@ -186,7 +191,7 @@ void main() async {
       await pubKeyFile.writeAsString(pubKey, flush: true);
     }
   }
-  rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));
+  rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));*/
 
   //Putting printers in list
   printers.addAll(
@@ -221,9 +226,9 @@ void main() async {
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
       reqHandler(
-        pubKey,
-        privKey,
-        data,
+        /*pubKey,
+        privKey,*/
+        data: data,
         getCurrentOrderNumber: ()=>currentOrder++
       )
     );
@@ -246,10 +251,12 @@ void main() async {
 }
 
 shelf.Handler reqHandler(
-  String pubKey,
-  RSAPrivateKey privKey,
-  Map<int, List<Item>> data,
-  {int Function() getCurrentOrderNumber}
+  {
+    String pubKey,
+    RSAPrivateKey privKey,
+    Map<int, List<Item>> data,
+    int Function() getCurrentOrderNumber
+  }
 ) =>
   (shelf.Request req) async {
     switch (req.url.path) {
