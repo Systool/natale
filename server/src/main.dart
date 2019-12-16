@@ -170,7 +170,7 @@ void main() async {
     if(await csvdata.exists()){
       List<List> table = csv.decoder.convert(await csvdata.readAsString(), shouldParseNumbers: true);
       try {
-        currentOrder = table.last[0] is int ? table.last[0] : 0;
+        currentOrder = table.last[0] is int ? table.last[0]+1 : 0;
       } on StateError {
         currentOrder = 0;
       }
@@ -188,8 +188,6 @@ void main() async {
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
       reqHandler(
-        /*pubKey,
-        privKey,*/
         data: data,
         getCurrentOrderNumber: ()=>currentOrder++
       )

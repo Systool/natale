@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:html' show window;
-import 'dart:convert' show json, utf8;
+import 'dart:convert' show json;
 import 'dart:ui' hide window;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -38,15 +38,13 @@ class MyApp extends StatelessWidget {
           )
         )
       ),
-      debugShowCheckedModeBanner: false,
       home: Config(),
     );
   }
 }
 
-class Config extends StatelessWidget {
-  final Future<void> storingProducts = (
-    ()async{
+      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false, ()async{
       dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
       try{
         resp = json.decode(resp.body);
