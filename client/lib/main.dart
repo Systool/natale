@@ -66,15 +66,6 @@ class Config extends StatelessWidget {
     }
   )();
 
-  final Future<void> storingKey = (
-    //Parse the key received from the http request
-    ()async=>pubKey = RSA(
-      publicKey: RSAKeyParser().parse(
-        (await httpClient.get(Uri.http(window.location.host, "key"))).body
-      )
-    )
-  )();
-
   Widget build(BuildContext cntxt) => Scaffold(
     body: Center(
       child: StatefulBuilder(
@@ -99,7 +90,7 @@ class Config extends StatelessWidget {
             : Text("Getting Printers from ${window.location.host}...", textScaleFactor: 1.5),
           )
           :FutureBuilder(
-            future: Future.wait([storingProducts, storingKey], eagerError: true),
+            future: storingProducts,
             builder: (cntxt, future){
               if(future.connectionState == ConnectionState.done)
                 if(future.hasError) return Text("Error: ${future.error.toString()}");
@@ -496,11 +487,7 @@ class CartState extends State<Cart> {
                   'print',
                   { "p": idxPrinter.toString() }
                 ),
-                body: /*pubKey.encrypt(
-                  //String=>List<int>
-                  utf8.encode(json.encode(order))
-                ).bytes*/json.encode(order),
-                 //Send raw bytes
+                body: json.encode(order)
               );
             } on Exception catch(e) {
               print(e.toString());
