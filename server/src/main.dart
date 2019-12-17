@@ -87,23 +87,6 @@ final String products = json.encode(
           'POPCORN.jpg',
           'Popcorn',
           200
-      ),
-      Product.constant(
-          'bibite.jpeg',
-          'Bibita',
-          0,
-          {
-            '': VariationList(
-            ListKind.Radio,
-            [
-              'Coca Cola',
-              'Fanta',
-              'Sprite',
-              'The Limone',
-              'The Pesca'
-            ]
-          )
-          }
       )
     ],
     'Dolce': [
@@ -189,11 +172,11 @@ void main() async {
   rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));*/
 
   //Putting printers in list
-  printers.addAll(
+  /*printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
       .where((e)=>e.path.contains('/lp') && e is File)
       .cast<File>()
-  );
+  );*/printers.add(File('/dev/null'));
 
   //Initializing csv and order in-memory database
   int currentOrder = 0;
