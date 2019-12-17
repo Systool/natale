@@ -8,6 +8,7 @@ import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
+import 'utils.dart';
 
 final String products = json.encode(
   {
@@ -95,7 +96,7 @@ final String products = json.encode(
       ),
       Product.constant(
           'POPCORN.jpg',
-          'Popcorn',
+          'POPCORN',
           200
       )
     ],
@@ -140,20 +141,20 @@ final String products = json.encode(
         }
       )
     ]
-  } as Map
+  }
 );
 
-final List<File> printers = [];
+final List<MutexPair<File>> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
 final CsvCodec csv = CsvCodec(eol: '\n');
 
 void main() async {
   //Putting printers in list
-  /*printers.addAll(
+  printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
       .where((e)=>e.path.contains('/lp') && e is File)
-      .cast<File>()
-  );*/printers.add(File('/dev/null'));
+      .map((e)=>MutexPair(e as File))
+  );
 
   //Initializing csv and order in-memory database
   int currentOrder = 0;
@@ -242,7 +243,9 @@ shelf.Handler reqHandler(
         //Actually print the thing
         int currN = getCurrentOrderNumber();
         data[currN] = out;
-        await printerPrint(printers[idxPrinter], currN, out);
+        await printers[idxPrinter].lock.synchronized(
+          () async => await printerPrint(printers[idxPrinter].res, currN, out)
+        );
         return Response.ok('Printed');
         break;
       case 'products':
@@ -251,7 +254,7 @@ shelf.Handler reqHandler(
       case 'printers':
         return Response.ok(
           printers.map(
-            (e)=>e.path,
+            (e)=>e.res.path,
           ).join(',')
         );
         break;

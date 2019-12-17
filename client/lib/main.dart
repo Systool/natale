@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:html' show window;
-import 'dart:convert' show json, utf8;
+import 'dart:convert' show json;
 import 'dart:ui' hide window;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
