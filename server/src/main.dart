@@ -219,19 +219,10 @@ shelf.Handler reqHandler(
           idxPrinter >= printers.length
         ) return Response(400, body: 'Missing printer index');
 
-        //Decode the body
-        Uint8List body;
-        await req.read().forEach(
-          (stream){
-            if(body == null)body = Uint8List.fromList(stream);
-            else body.addAll(stream);
-          }
-        );
-        dynamic out;
-
         //Decode and deserialize the body
+        dynamic out;
         try {
-          out = json.decode(utf8.decode(body)) as List<dynamic>;
+          out = json.decode(await req.readAsString()) as List<dynamic>;
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
