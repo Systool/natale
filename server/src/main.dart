@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
@@ -173,7 +172,6 @@ void main() async {
       );
     }
   }
-  print(currentOrder);
 
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
@@ -189,6 +187,7 @@ void main() async {
       return server;
     }
   );
+  print(currentOrder);
 
   StreamSubscription sub;
   sub = ProcessSignal.sigint.watch().listen(
@@ -196,6 +195,7 @@ void main() async {
       await server.close();
       storeToFile(data);
       await sub.cancel();
+      print(currentOrder);
     }
   );
 }
