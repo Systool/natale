@@ -321,16 +321,11 @@ class MealDialog extends StatelessWidget {
       delegate: MealDelegate(),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        child: Column(//TODO: Swap this with a MultiChildCustomLayout
-          mainAxisSize: MainAxisSize.min,
+        child: CustomMultiChildLayout(
+          delegate: MealBodyDelegate(),
           children: <Widget>[
-            Padding(
-              padding: EdgeInsets.only(
-                top: 20,
-                bottom: 10,
-                left: 20,
-                right: 20
-              ),
+            LayoutId(
+              id: 'list',
               child: ListView(
                 shrinkWrap: true,
                 children: <Widget>[
@@ -342,24 +337,46 @@ class MealDialog extends StatelessWidget {
                 ]
               )
             ),
-            ButtonBar(
-              children: <Widget>[
-                FlatButton(
-                  child: Text('Annulla'),
-                  onPressed: onCancellation,
-                ),
-                RaisedButton(
-                  child: Text('Aggiungi al Carrello'),
-                  color: Colors.red,
-                  onPressed: ()=>onApproval(_choices),
-                )
-              ],
+            LayoutId(
+              id: 'btns',
+              child: ButtonBar(
+                children: <Widget>[
+                  FlatButton(
+                    child: Text('Annulla'),
+                    onPressed: onCancellation,
+                  ),
+                  RaisedButton(
+                    child: Text('Aggiungi al Carrello'),
+                    color: Colors.red,
+                    onPressed: ()=>onApproval(_choices),
+                  )
+                ],
+              )
             )
           ]
         )
       )
     )
   );
+}
+
+class MealBodyDelegate extends MultiChildLayoutDelegate {
+  void performLayout(Size size){
+    double btnsHeight = layoutChild(
+      'btns', BoxConstraints.loose(size)
+    ).height;
+    positionChild('btns', Offset(0, size.height-btnsHeight));
+
+    layoutChild(
+      'list',
+      BoxConstraints.loose(
+        Size(size.width-40, size.height-btnsHeight-30)
+      )
+    ).height;
+    positionChild('list', Offset(20, 20));
+  }
+
+  bool shouldRelayout(MealBodyDelegate old)=>false;
 }
 
 class Cart extends StatefulWidget {
