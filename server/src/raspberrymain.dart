@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
@@ -8,6 +7,7 @@ import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
+import 'utils.dart';
 
 final String products = json.encode(
   {
@@ -40,6 +40,16 @@ final String products = json.encode(
             [
               'Ketchup',
               'Maionese'
+            ]
+          ),
+          '': VariationList(
+            ListKind.Radio,
+            [
+              'Coca Cola',
+              'Fanta',
+              'Sprite',
+              'The Limone',
+              'The Pesca'
             ]
           )
         }
@@ -87,23 +97,6 @@ final String products = json.encode(
           'POPCORN.jpg',
           'POPCORN',
           200
-      ),
-      Product.constant(
-          'bibite.jpeg',
-          'BIBITA',
-          0,
-          {
-            '': VariationList(
-            ListKind.Radio,
-            [
-              'Coca Cola',
-              'Fanta',
-              'Sprite',
-              'The Limone',
-              'The Pesca'
-            ]
-          )
-          }
       )
     ],
     'Dolce': [
@@ -134,7 +127,7 @@ final String products = json.encode(
         'BIBITE',
         80,
         {
-          'Bibite': VariationList(
+          '': VariationList(
             ListKind.Radio,
             [
               'Coca Cola',
@@ -147,33 +140,28 @@ final String products = json.encode(
         }
       )
     ]
-  } as Map
+  }
 );
 
-final List<File> printers = [];
+final List<MutexPair<File>> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
-final CsvCodec csv = CsvCodec();
+final CsvCodec csv = CsvCodec(eol: '\n');
 
 void main() async {
   //Putting printers in list
   printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
       .where((e)=>e.path.contains('/lp') && e is File)
-      .cast<File>()
+      .map((e)=>MutexPair(e as File))
   );
 
   //Initializing csv and order in-memory database
   int currentOrder = 0;
-  Map<int, List<Item>> data = {};
   {
     File csvdata = File('data.csv');
     if(await csvdata.exists()){
       List<List> table = csv.decoder.convert(await csvdata.readAsString(), shouldParseNumbers: true);
-      try {
-        currentOrder = table.last[0] is int ? table.last[0]+1 : 0;
-      } on StateError {
-        currentOrder = 0;
-      }
+      currentOrder = table.last[0] is int ? table.last[0]+1 : 0;
     } else {
       await csvdata.create();
       await csvdata.writeAsString(
@@ -183,13 +171,13 @@ void main() async {
       );
     }
   }
-  print(currentOrder);
+  MutexPair<IOSink> csvdata = MutexPair(await File('data.csv').openWrite(mode: FileMode.append));
 
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
       reqHandler(
-        data: data,
-        getCurrentOrderNumber: ()=>currentOrder++
+        getCurrentOrderNumber: ()=>currentOrder++,
+        outFile: csvdata
       )
     );
 
@@ -199,13 +187,16 @@ void main() async {
       return server;
     }
   );
+  print(currentOrder);
 
   StreamSubscription sub;
   sub = ProcessSignal.sigint.watch().listen(
     (sig) async {
       await server.close();
-      storeToFile(data);
       await sub.cancel();
+      await csvdata.res.flush();
+      await csvdata.res.close();
+      print(currentOrder);
     }
   );
 }
@@ -213,7 +204,8 @@ void main() async {
 shelf.Handler reqHandler(
   {
     Map<int, List<Item>> data,
-    int Function() getCurrentOrderNumber
+    int Function() getCurrentOrderNumber,
+    MutexPair<IOSink> outFile
   }
 ) =>
   (shelf.Request req) async {
@@ -229,19 +221,10 @@ shelf.Handler reqHandler(
           idxPrinter >= printers.length
         ) return Response(400, body: 'Missing printer index');
 
-        //Decode the body
-        Uint8List body;
-        await req.read().forEach(
-          (stream){
-            if(body == null)body = Uint8List.fromList(stream);
-            else body.addAll(stream);
-          }
-        );
-        dynamic out;
-
         //Decode and deserialize the body
+        dynamic out;
         try {
-          out = json.decode(utf8.decode(body)) as List<dynamic>;
+          out = json.decode(await req.readAsString()) as List<dynamic>;
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
@@ -252,8 +235,12 @@ shelf.Handler reqHandler(
         
         //Actually print the thing
         int currN = getCurrentOrderNumber();
-        data[currN] = out;
-        await printerPrint(printers[idxPrinter], currN, out);
+        await printers[idxPrinter].lock.synchronized(
+          () async => await printerPrint(printers[idxPrinter].res, currN, out)
+        );
+        await outFile.lock.synchronized(
+          () async => await storeRow(outFile.res, currN, out)
+        );
         return Response.ok('Printed');
         break;
       case 'products':
@@ -262,7 +249,7 @@ shelf.Handler reqHandler(
       case 'printers':
         return Response.ok(
           printers.map(
-            (e)=>e.path,
+            (e)=>e.res.path,
           ).join(',')
         );
         break;
@@ -299,19 +286,22 @@ void printerPrint(File printer, int orderNum, List<Item> items) async {
   await printer.writeAsBytes(bytes);
 }
 
-void storeToFile(Map<int, List<Item>> map) async =>
-  await File('data.csv').writeAsString(
-    csv.encoder.convert(
+void storeRow(IOSink out, int orderN, List<Item> row) async {
+  if(row.isNotEmpty){
+    StringBuffer sb = StringBuffer();
+    csv.encoder.convertSingleRow(
+      sb,
       [
-        for (MapEntry<int, List<Item>> e in map.entries)[
-          e.key,
-          for (Item i in e.value) ...[
-            i.product.name,
-            i.chosvar.toString(),
-            i.quantity
-          ]
-        ]//[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
+        orderN,
+        for (Item i in row) ...[
+          i.product.name,
+          i.chosvar.toString(),
+          i.quantity
+        ]
       ]
-    )+'\n',
-    mode: FileMode.writeOnlyAppend
-  );
+    );
+    sb.write('\n');
+    //[['Order Number', 'Product', 'Variant(s)', 'Quantity']]
+    out.write(sb);
+  }
+}
