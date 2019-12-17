@@ -1,9 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-<<<<<<< HEAD
-=======
-import 'dart:typed_data';
->>>>>>> 6740058d7ddefd9a6e656b48c3bdf59159ad2f05
 import 'dart:convert' show utf8, latin1, json;
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
