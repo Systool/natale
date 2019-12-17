@@ -41,6 +41,16 @@ final String products = json.encode(
               'Ketchup',
               'Maionese'
             ]
+          ),
+          '': VariationList(
+            ListKind.Radio,
+            [
+              'Coca Cola',
+              'Fanta',
+              'Sprite',
+              'The Limone',
+              'The Pesca'
+            ]
           )
         }
       ),
@@ -117,7 +127,7 @@ final String products = json.encode(
         'BIBITE',
         80,
         {
-          'Bibite': VariationList(
+          '': VariationList(
             ListKind.Radio,
             [
               'Coca Cola',
@@ -135,42 +145,9 @@ final String products = json.encode(
 
 final List<File> printers = [];
 final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
-//final PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
 final CsvCodec csv = CsvCodec(eol: '\n');
 
 void main() async {
-  /*String pubKey;
-  RSAPrivateKey privKey;
-  {
-    File pubKeyFile = File('pub.pem');
-    File privKeyFile = File('priv.pem');
-    //Loading KeyPair
-    if(await pubKeyFile.exists() || await privKeyFile.exists()){
-      print('Loading key pair');
-      pubKey = await pubKeyFile.readAsString();
-      privKey = X509Utils.privateKeyFromPem(await privKeyFile.readAsString());
-    } else {
-      //Creating KeyPair
-      print('Creating key pair');
-      var rng = Random.secure();
-      var seeds = Uint8List(32);
-      for(var i = 0; i < seeds.length; ++i) seeds[i]=rng.nextInt(256);
-      var keyPair = (
-        RSAKeyGenerator()..init(
-          ParametersWithRandom(
-            RSAKeyGeneratorParameters(BigInt.from(65537), 2048, 5),
-            FortunaRandom()..seed(KeyParameter(seeds))
-          )
-        )
-      ).generateKeyPair();
-      privKey = keyPair.privateKey;
-      pubKey = X509Utils.encodeRSAPublicKeyToPem(keyPair.publicKey);
-      await privKeyFile.writeAsString(X509Utils.encodeRSAPrivateKeyToPem(keyPair.privateKey), flush: true);
-      await pubKeyFile.writeAsString(pubKey, flush: true);
-    }
-  }
-  rsa.init(false, PrivateKeyParameter<RSAPrivateKey>(privKey));*/
-
   //Putting printers in list
   /*printers.addAll(
     Directory('/dev/usb').listSync(followLinks: false)
@@ -200,8 +177,6 @@ void main() async {
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
       reqHandler(
-        /*pubKey,
-        privKey,*/
         data: data,
         getCurrentOrderNumber: ()=>currentOrder++
       )
