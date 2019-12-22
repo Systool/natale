@@ -1,20 +1,26 @@
 import 'dart:async';
 import 'dart:html' show window;
-import 'dart:convert' show json;
+import 'dart:convert' show json, utf8;
+import 'dart:typed_data';
 import 'dart:ui' hide window;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/browser_client.dart' show BrowserClient;
+import 'package:basic_utils/basic_utils.dart' show X509Utils;
+import 'package:pointycastle/asymmetric/pkcs1.dart';
+import 'package:pointycastle/asymmetric/rsa.dart';
+import 'package:pointycastle/pointycastle.dart' hide Padding;
 import 'product.dart';
 import 'delegates.dart';
 
 final httpClient = BrowserClient();
 
 void main() => runApp(MyApp());
-
+PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
 int idxPrinter;
+
 final Map<String, List<Product>> prodotti = {};
 
 class MyApp extends StatelessWidget {
@@ -46,12 +52,8 @@ class MyApp extends StatelessWidget {
 class Config extends StatelessWidget {
   final storingProducts = (
     ()async{
-      dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
-      try{
-        resp = json.decode(resp.body);
-      } on Exception {
-        print(resp.toString());
-      }
+      dynamic resp = await httpClient.get(Uri.http(window.location.host, 'products'));
+      resp = json.decode(resp.body);
 
       if(resp is Map<String, dynamic>)
         for (MapEntry<String, dynamic> e in resp.entries)
@@ -60,6 +62,16 @@ class Config extends StatelessWidget {
               Product.fromJson(prod)
           ];
       else throw StateError('Products were not sent correctly');
+    }
+  )();
+
+  final storingKey = (
+    ()async{
+      String resp = (await httpClient.get(Uri.http(window.location.host, 'key'))).body;
+      rsa.init(
+        true,
+        PublicKeyParameter(X509Utils.publicKeyFromPem(resp))
+      );
     }
   )();
 
@@ -87,7 +99,7 @@ class Config extends StatelessWidget {
             : Text("Getting Printers from ${window.location.host}...", textScaleFactor: 1.5),
           )
           :FutureBuilder(
-            future: storingProducts,
+            future: Future.wait([storingProducts, storingKey]),
             builder: (cntxt, future){
               if(future.connectionState == ConnectionState.done)
                 if(future.hasError) return Text("Error: ${future.error.toString()}");
@@ -484,7 +496,7 @@ class CartState extends State<Cart> {
                   'print',
                   { "p": idxPrinter.toString() }
                 ),
-                body: json.encode(order)
+                body: rsa.process(utf8.encode(json.encode(order)))
               );
             } on Exception catch(e) {
               print(e.toString());

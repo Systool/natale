@@ -21,6 +21,8 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^0.1.2
   collection: ^1.14.11
+  pointycastle: ^1.0.2
+  basic_utils: ^2.4.3
 
 dev_dependencies:
   flutter_test:
