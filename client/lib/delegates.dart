@@ -19,6 +19,25 @@ class MealDelegate extends SingleChildLayoutDelegate {
   bool shouldRelayout(MealDelegate old)=>false;
 }
 
+class MealBodyDelegate extends MultiChildLayoutDelegate {
+  void performLayout(Size size){
+    double btnsHeight = layoutChild(
+      'btns', BoxConstraints.loose(size)
+    ).height;
+    positionChild('btns', Offset(0, size.height-btnsHeight));
+
+    layoutChild(
+      'list',
+      BoxConstraints.loose(
+        Size(size.width-40, size.height-btnsHeight-30)
+      )
+    ).height;
+    positionChild('list', Offset(20, 20));
+  }
+
+  bool shouldRelayout(MealBodyDelegate old)=>false;
+}
+
 class HorizontallySplitView extends MultiChildLayoutDelegate {
   HorizontallySplitView({Listenable relayout}): super(relayout: relayout);
 

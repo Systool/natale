@@ -43,8 +43,9 @@ class MyApp extends StatelessWidget {
   }
 }
 
-      debugShowCheckedModeBanner: false,
-      debugShowCheckedModeBanner: false, ()async{
+class Config extends StatelessWidget {
+  final storingProducts = (
+    ()async{
       dynamic resp = await httpClient.get(Uri.http(window.location.host, "products"));
       try{
         resp = json.decode(resp.body);
@@ -356,25 +357,6 @@ class MealDialog extends StatelessWidget {
       )
     )
   );
-}
-
-class MealBodyDelegate extends MultiChildLayoutDelegate {
-  void performLayout(Size size){
-    double btnsHeight = layoutChild(
-      'btns', BoxConstraints.loose(size)
-    ).height;
-    positionChild('btns', Offset(0, size.height-btnsHeight));
-
-    layoutChild(
-      'list',
-      BoxConstraints.loose(
-        Size(size.width-40, size.height-btnsHeight-30)
-      )
-    ).height;
-    positionChild('list', Offset(20, 20));
-  }
-
-  bool shouldRelayout(MealBodyDelegate old)=>false;
 }
 
 class Cart extends StatefulWidget {
