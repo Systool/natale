@@ -13,7 +13,8 @@ dependencies:
   shelf_static: ^0.2.8
   csv: ^4.0.3
   synchronized: ^2.1.1
-
+  pointycastle: ^1.0.2
+  basic_utils: ^2.4.3
 
 
 dev_dependencies:

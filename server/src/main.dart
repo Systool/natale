@@ -2,6 +2,12 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
+import 'package:basic_utils/basic_utils.dart' show X509Utils;
+import 'package:pointycastle/asymmetric/api.dart';
+import 'package:pointycastle/asymmetric/pkcs1.dart';
+import 'package:pointycastle/asymmetric/rsa.dart';
+import 'package:pointycastle/export.dart';
+import 'package:pointycastle/pointycastle.dart';
 import 'package:shelf/shelf.dart' as shelf;
 import 'package:shelf/shelf.dart' show Response;
 import 'package:shelf/shelf_io.dart' show serve;
@@ -9,158 +15,45 @@ import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
 
-final String products = json.encode(
-  {
-    'Salato':[
-      Product.constant(
-        'MENÙ ONTO.jpeg',
-        'MENU ONTO',
-        650,
-        {
-          'Carne': VariationList(
-            ListKind.Radio,
-            [
-              'Porchetta',
-              'Salsiccia',
-              'No Carne'
-            ]
-          ),
-          'Farcitura':  VariationList(
-            ListKind.Check,
-            [
-              'Cipolla',
-              'Peperoni',
-              'Formaggio',
-              'Maionese',
-              'Ketchup'
-            ]
-          ),
-          'Salsa': VariationList(
-            ListKind.Check,
-            [
-              'Ketchup',
-              'Maionese'
-            ]
-          )
-        }
-      ),
-      Product.constant(
-        'PANINO ONTO.jpg',
-        'PANINO ONTO',
-        450,
-        {
-          'Carne': VariationList(
-            ListKind.Radio,
-            [
-              'Porchetta',
-              'Salsiccia',
-              'No Carne'
-            ]
-          ),
-          'Farcitura':  VariationList(
-            ListKind.Check,
-            [
-              'Cipolla',
-              'Peperoni',
-              'Formaggio',
-              'Maionese',
-              'Ketchup'
-            ]
-          )
-        }
-      ),
-      Product.constant(
-        'Patatine-Fritte.jpg',
-        'PATATINE FRITTE',
-        200,
-        {
-          'Salsa': VariationList(
-            ListKind.Check,
-            [
-              'Ketchup',
-              'Maionese'
-            ]
-          )
-        }
-      ),
-      Product.constant(
-          'POPCORN.jpg',
-          'POPCORN',
-          200
-      ),
-      Product.constant(
-          'bibite.jpeg',
-          'BIBITA',
-          0,
-          {
-            '': VariationList(
-            ListKind.Radio,
-            [
-              'Coca Cola',
-              'Fanta',
-              'Sprite',
-              'The Limone',
-              'The Pesca'
-            ]
-          )
-          }
-      )
-    ],
-    'Dolce': [
-      Product.constant(
-        'Zucchero Filato.jpeg',
-        'ZUCCHERO FILATO',
-        100
-      ),
-      Product.constant(
-        'pandoro.PNG',
-        'PANDORO',
-        100
-      ),
-      Product.constant(
-        'cioccolata-calda-densa.jpg',
-        'CIOCCOLATA CALDA',
-        100
-      ),
-      Product.constant(
-        'menu dolce.PNG',
-        'MENU DOLCE',
-        150
-      )
-    ],
-    'Bibite': [
-      Product.constant(
-        'bibite.jpeg',
-        'BIBITE',
-        80,
-        {
-          'Bibite': VariationList(
-            ListKind.Radio,
-            [
-              'Coca Cola',
-              'Fanta',
-              'Sprite',
-              'The Limone',
-              'The Pesca'
-            ]
-          )
-        }
-      )
-    ]
-  } as Map
-);
-
-final List<File> printers = [];
-final shelf.Handler fileHandler = createStaticHandler('.', defaultDocument: 'index.html');
 final CsvCodec csv = CsvCodec();
 
 void main() async {
+  //Load RSA Keys
+  PKCS1Encoding priv = PKCS1Encoding(RSAEngine());
+  String pub;
+  {
+    File privFile = File('priv.pem');
+    File pubFile = File('pub.pem');
+    if(await privFile.exists() && await pubFile.exists()){
+      pub = await pubFile.readAsString();
+      priv.init(
+        false,
+        PrivateKeyParameter(X509Utils.privateKeyFromPem(await privFile.readAsString()))
+      );
+    } else {
+      dynamic keys = RSAKeyGenerator()..init(
+        //ParametersWithRandom(
+          RSAKeyGeneratorParameters(BigInt.from(65537), 4096, 12),
+          /*FortunaRandom()
+        )*/
+      );
+      keys = keys.generateKeyPair();
+      pub = X509Utils.encodeRSAPublicKeyToPem(keys.publicKey);
+      await pubFile.writeAsString(pub);
+      await privFile.writeAsString(X509Utils.encodeRSAPrivateKeyToPem(keys.privateKey));
+      priv.init(false, PrivateKeyParameter(keys.privateKey));
+    }
+  }
+
   //Putting printers in list
-  printers.addAll(
-    Directory('/dev/usb').listSync(followLinks: false)
-      .where((e)=>e.path.contains('/lp') && e is File)
-      .cast<File>()
-  );
+  final printers = [];
+  try {
+    await for (var entity in Directory('/dev/usb').list(followLinks: false))
+      if(entity.path.contains('/lp') && entity is File)
+        printers.add(entity);
+  } finally {
+    printers.add(File('/dev/null'));
+  }
 
   //Initializing csv and order in-memory database
   int currentOrder = 0;
@@ -189,16 +82,16 @@ void main() async {
     .addHandler(
       reqHandler(
         data: data,
-        getCurrentOrderNumber: ()=>currentOrder++
+        currentOrder: currentOrder,
+        staticFilesHandler: createStaticHandler('.', defaultDocument: 'index.html'),
+        enc: priv,
+        pub: pub,
+        products: await File('product.json').readAsString()
       )
     );
 
-  HttpServer server = await serve(handler, '0.0.0.0', 8080).then(
-    (server){
-      print('Listening on ${server.address.address}:${server.port}');
-      return server;
-    }
-  );
+  HttpServer server = await serve(handler, '0.0.0.0', 8080);
+  print('Listening on ${server.address.address}:${server.port}');
 
   StreamSubscription sub;
   sub = ProcessSignal.sigint.watch().listen(
@@ -212,11 +105,15 @@ void main() async {
 
 shelf.Handler reqHandler(
   {
+    PKCS1Encoding enc,
+    String pub,
     Map<int, List<Item>> data,
-    int Function() getCurrentOrderNumber
+    int currentOrder = 0,
+    shelf.Handler staticFilesHandler,
+    List<File> printers,
+    String products
   }
-) =>
-  (shelf.Request req) async {
+) => (shelf.Request req) async {
     switch (req.url.path) {
       case 'print':
         int idxPrinter;
@@ -251,7 +148,7 @@ shelf.Handler reqHandler(
         ];
         
         //Actually print the thing
-        int currN = getCurrentOrderNumber();
+        int currN = currentOrder++;
         data[currN] = out;
         await printerPrint(printers[idxPrinter], currN, out);
         return Response.ok('Printed');
@@ -267,13 +164,13 @@ shelf.Handler reqHandler(
         );
         break;
       default:
-        return fileHandler(req);
+        return staticFilesHandler(req);
     }
   };
 
 void printerPrint(File printer, int orderNum, List<Item> items) async {
   const int ESC = 0x1B;
-  var bytes = List<int>();
+  var bytes = <int>[];
   bytes.addAll([ESC, 0x40]);
   bytes.addAll([ESC, 0x61, 2]);
   bytes.addAll(latin1.encode('$orderNum\nAssemblea di Natale\n'));
