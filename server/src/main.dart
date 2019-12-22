@@ -138,7 +138,7 @@ shelf.Handler reqHandler(
 
         //Decode and deserialize the body
         try {
-          out = json.decode(utf8.decode(body)) as List<dynamic>;
+          out = json.decode(utf8.decode(enc.process(body))) as List<dynamic>;
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
@@ -152,6 +152,9 @@ shelf.Handler reqHandler(
         data[currN] = out;
         await printerPrint(printers[idxPrinter], currN, out);
         return Response.ok('Printed');
+        break;
+      case 'key':
+        return Response.ok(pub);
         break;
       case 'products':
         return Response.ok(products);
