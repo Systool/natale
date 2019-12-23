@@ -2,10 +2,8 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
-import 'dart:math' show min;
 import 'package:basic_utils/basic_utils.dart' show X509Utils;
 import 'package:pointycastle/asymmetric/api.dart';
-import 'package:pointycastle/asymmetric/pkcs1.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/export.dart';
 import 'package:pointycastle/pointycastle.dart';
@@ -160,7 +158,6 @@ shelf.Handler reqHandler(
               )
             )
           ) as List;
-          print(out.toString());
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
