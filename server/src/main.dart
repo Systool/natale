@@ -14,6 +14,7 @@ import 'package:shelf/shelf_io.dart' show serve;
 import 'package:shelf_static/shelf_static.dart' show createStaticHandler;
 import 'package:csv/csv.dart' show CsvCodec;
 import 'product.dart';
+import 'utils.dart';
 
 final CsvCodec csv = CsvCodec();
 
@@ -32,10 +33,10 @@ void main() async {
       );
     } else {
       dynamic keys = RSAKeyGenerator()..init(
-        //ParametersWithRandom(
+        ParametersWithRandom(
           RSAKeyGeneratorParameters(BigInt.from(65537), 4096, 12),
-          /*FortunaRandom()
-        )*/
+          DartRandomSecure()
+        )
       );
       keys = keys.generateKeyPair();
       pub = X509Utils.encodeRSAPublicKeyToPem(keys.publicKey);
