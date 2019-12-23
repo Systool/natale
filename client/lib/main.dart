@@ -3,26 +3,25 @@ import 'dart:html' show window;
 import 'dart:convert' show json, utf8;
 import 'dart:typed_data';
 import 'dart:ui' hide window;
-import 'dart:math';
+import 'dart:math' show min;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:http/browser_client.dart' show BrowserClient;
 import 'package:basic_utils/basic_utils.dart' show X509Utils;
-import 'package:pointycastle/asymmetric/pkcs1.dart';
+import 'package:pointycastle/asymmetric/oaep.dart';
 import 'package:pointycastle/asymmetric/rsa.dart';
 import 'package:pointycastle/pointycastle.dart' hide Padding;
 import 'product.dart';
 import 'delegates.dart';
 
 final httpClient = BrowserClient();
-
-void main() => runApp(MyApp());
-PKCS1Encoding rsa = PKCS1Encoding(RSAEngine());
+final rsa = OAEPEncoding(RSAEngine());
+final Map<String, List<Product>> prodotti = {};
 int idxPrinter;
 
-final Map<String, List<Product>> prodotti = {};
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -491,16 +490,15 @@ class CartState extends State<Cart> {
           child: Icon(Icons.shopping_cart),
           onPressed: (){
             try {
-              List<int> unenc = utf8.encode(json.encode(order));
-              Uint8List body = Uint8List(rsa.outputBlockSize*(unenc.length~/rsa.inputBlockSize+1));
-              for(int i = 0; i < body.length;)
-                i += rsa.processBlock(
-                  unenc,
-                  i,
-                  min(rsa.inputBlockSize, unenc.length-i),
-                  body,
-                  i
-                );
+              List<int> unenc = List.from(utf8.encode(json.encode(order)));
+              List<Uint8List> body = [];
+              while(unenc.length > 0){
+                int blockLen = min(rsa.inputBlockSize, unenc.length);
+              
+                Uint8List block = Uint8List.fromList(unenc.sublist(0, blockLen));
+                unenc.removeRange(0, blockLen);
+                body.add(rsa.process(block));
+              }
 
               httpClient.post(
                 Uri.http(
@@ -508,7 +506,7 @@ class CartState extends State<Cart> {
                   'print',
                   { "p": idxPrinter.toString() }
                 ),
-                body: body
+                body: json.encode(body)
               );
             } on Exception catch(e) {
               print(e.toString());

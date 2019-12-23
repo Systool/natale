@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 import 'dart:convert' show utf8, latin1, json;
+import 'dart:math' show min;
 import 'package:basic_utils/basic_utils.dart' show X509Utils;
 import 'package:pointycastle/asymmetric/api.dart';
 import 'package:pointycastle/asymmetric/pkcs1.dart';
@@ -29,7 +30,7 @@ void main() async {
 
 void run() async {
   //Load RSA Keys
-  PKCS1Encoding priv = PKCS1Encoding(RSAEngine());
+  RSAPrivateKey priv;
   String pub;
   {
     File privFile = File('priv.pem');
@@ -37,10 +38,7 @@ void run() async {
     if(await privFile.exists() && await pubFile.exists()){
       print('Loading keys');
       pub = await pubFile.readAsString();
-      priv.init(
-        false,
-        PrivateKeyParameter<RSAPrivateKey>(X509Utils.privateKeyFromPem(await privFile.readAsString()))
-      );
+      priv = X509Utils.privateKeyFromPem(await privFile.readAsString());
     } else {
       print('Creating keys');
       dynamic keys = RSAKeyGenerator()..init(
@@ -53,7 +51,7 @@ void run() async {
       pub = X509Utils.encodeRSAPublicKeyToPem(keys.publicKey);
       await pubFile.writeAsString(pub);
       await privFile.writeAsString(X509Utils.encodeRSAPrivateKeyToPem(keys.privateKey));
-      priv.init(false, PrivateKeyParameter<RSAPrivateKey>(keys.privateKey));
+      priv = keys.privateKey;
     }
   }
 
@@ -97,7 +95,7 @@ void run() async {
         data: data,
         currentOrder: currentOrder,
         staticFilesHandler: createStaticHandler('.', defaultDocument: 'index.html'),
-        enc: priv,
+        priv: priv,
         pub: pub,
         products: await File('product.json').readAsString(),
         printers: printers
@@ -119,7 +117,7 @@ void run() async {
 
 shelf.Handler reqHandler(
   {
-    PKCS1Encoding enc,
+    RSAPrivateKey priv,
     String pub,
     Map<int, List<Item>> data,
     int currentOrder = 0,
@@ -127,7 +125,14 @@ shelf.Handler reqHandler(
     List<File> printers,
     String products
   }
-) => (shelf.Request req) async {
+){
+  OAEPEncoding enc = OAEPEncoding(
+    RSAEngine()
+  )..init(
+    false,
+    PrivateKeyParameter<RSAPrivateKey>(priv)
+  );
+  return (shelf.Request req) async {
     switch (req.url.path) {
       case 'print':
         int idxPrinter;
@@ -140,19 +145,22 @@ shelf.Handler reqHandler(
           idxPrinter >= printers.length
         ) return Response(400, body: 'Missing printer index');
 
-        //Decode the body
-        Uint8List body;
-        await req.read().forEach(
-          (stream){
-            if(body == null)body = Uint8List.fromList(stream);
-            else body.addAll(stream);
-          }
-        );
-        dynamic out;
+        //Read the body
+        List out = json.decode(await req.readAsString()) as List;
 
-        //Decode and deserialize the body
+        //Decrypt, decode and deserialize the body
         try {
-          out = json.decode(utf8.decode(enc.process(body))) as List<dynamic>;
+          out = json.decode(
+            utf8.decode(
+              out.fold(
+                <int>[],
+                (init, e)=>init..addAll(
+                  enc.process(Uint8List.fromList(e.cast<int>()))
+                )
+              )
+            )
+          ) as List;
+          print(out.toString());
         } on Exception {
           return Response(400, body: 'Invalid body');
         }
@@ -184,6 +192,7 @@ shelf.Handler reqHandler(
         return staticFilesHandler(req);
     }
   };
+}
 
 void printerPrint(File printer, int orderNum, List<Item> items) async {
   const int ESC = 0x1B;
