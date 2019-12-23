@@ -26,12 +26,14 @@ void main() async {
     File privFile = File('priv.pem');
     File pubFile = File('pub.pem');
     if(await privFile.exists() && await pubFile.exists()){
+      print('Loading keys');
       pub = await pubFile.readAsString();
       priv.init(
         false,
-        PrivateKeyParameter(X509Utils.privateKeyFromPem(await privFile.readAsString()))
+        PrivateKeyParameter<RSAPrivateKey>(X509Utils.privateKeyFromPem(await privFile.readAsString()))
       );
     } else {
+      print('Creating keys');
       dynamic keys = RSAKeyGenerator()..init(
         ParametersWithRandom(
           RSAKeyGeneratorParameters(BigInt.from(65537), 4096, 12),
@@ -42,7 +44,7 @@ void main() async {
       pub = X509Utils.encodeRSAPublicKeyToPem(keys.publicKey);
       await pubFile.writeAsString(pub);
       await privFile.writeAsString(X509Utils.encodeRSAPrivateKeyToPem(keys.privateKey));
-      priv.init(false, PrivateKeyParameter(keys.privateKey));
+      priv.init(false, PrivateKeyParameter<RSAPrivateKey>(keys.privateKey));
     }
   }
 
