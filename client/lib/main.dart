@@ -493,7 +493,7 @@ class CartState extends State<Cart> {
             try {
               List<int> unenc = utf8.encode(json.encode(order));
               Uint8List body = Uint8List(rsa.outputBlockSize*(unenc.length~/rsa.inputBlockSize+1));
-              for(int i = 0; i < unenc.length;)
+              for(int i = 0; i < body.length;)
                 i += rsa.processBlock(
                   unenc,
                   i,
