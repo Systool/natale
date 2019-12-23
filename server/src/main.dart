@@ -19,6 +19,15 @@ import 'utils.dart';
 final CsvCodec csv = CsvCodec();
 
 void main() async {
+  try {
+    await run();
+  } on Exception catch(e) {
+    print(e.toString());
+    exit(1);
+  }
+}
+
+void run() async {
   //Load RSA Keys
   PKCS1Encoding priv = PKCS1Encoding(RSAEngine());
   String pub;
@@ -49,11 +58,12 @@ void main() async {
   }
 
   //Putting printers in list
-  final printers = [];
+  final List<File> printers = [];
   try {
     await for (var entity in Directory('/dev/usb').list(followLinks: false))
       if(entity.path.contains('/lp') && entity is File)
         printers.add(entity);
+  } on FileSystemException {
   } finally {
     printers.add(File('/dev/null'));
   }
@@ -79,7 +89,7 @@ void main() async {
       );
     }
   }
-  print(currentOrder);
+  print('Current Order Number: $currentOrder');
 
   var handler = shelf.Pipeline().addMiddleware(shelf.logRequests())
     .addHandler(
@@ -89,7 +99,8 @@ void main() async {
         staticFilesHandler: createStaticHandler('.', defaultDocument: 'index.html'),
         enc: priv,
         pub: pub,
-        products: await File('product.json').readAsString()
+        products: await File('product.json').readAsString(),
+        printers: printers
       )
     );
 
