@@ -3,6 +3,7 @@ import 'dart:html' show window;
 import 'dart:convert' show json, utf8;
 import 'dart:typed_data';
 import 'dart:ui' hide window;
+import 'dart:math';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -490,13 +491,24 @@ class CartState extends State<Cart> {
           child: Icon(Icons.shopping_cart),
           onPressed: (){
             try {
+              List<int> unenc = utf8.encode(json.encode(order));
+              Uint8List body = Uint8List(rsa.outputBlockSize*(unenc.length~/rsa.inputBlockSize+1));
+              for(int i = 0; i < unenc.length;)
+                i += rsa.processBlock(
+                  unenc,
+                  i,
+                  min(rsa.inputBlockSize, unenc.length-i),
+                  body,
+                  i
+                );
+
               httpClient.post(
                 Uri.http(
                   window.location.host,
                   'print',
                   { "p": idxPrinter.toString() }
                 ),
-                body: rsa.process(utf8.encode(json.encode(order)))
+                body: body
               );
             } on Exception catch(e) {
               print(e.toString());
